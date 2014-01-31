@@ -210,16 +210,16 @@ ERL_NIF_TERM erl_binding::open(ErlNifEnv* env, ERL_NIF_TERM config)
             }
             const ERL_NIF_TERM key = property[0];
             const ERL_NIF_TERM value = property[1];
-            if (enif_compare(key, atoms::LOG_PATH)) {
+            if (enif_compare(key, atoms::LOG_PATH) == 0) {
                 log_path = read_string(env, value);
             }
-            else if (enif_compare(key, atoms::NODES)) {
+            else if (enif_compare(key, atoms::NODES) == 0) {
                 nodes = read_nodes(env, value);
             }
-            else if (enif_compare(key, atoms::GROUPS)) {
+            else if (enif_compare(key, atoms::GROUPS) == 0) {
                 groups = read_groups(env, value);
             }
-            else if (enif_compare(key, atoms::NAMESPACE)) {
+            else if (enif_compare(key, atoms::NAMESPACE) == 0) {
                 ns = read_string(env, value);
             }
         }
@@ -229,7 +229,7 @@ ERL_NIF_TERM erl_binding::open(ErlNifEnv* env, ERL_NIF_TERM config)
         ERL_NIF_TERM conn_term = enif_make_resource(env, db_ptr);
         return make_ok_result(env, conn_term);
     }
-    catch (...)
+    catch (const std::exception& e)
     {
         return enif_make_badarg(env);
     }
@@ -268,7 +268,6 @@ std::vector<node_entry> erl_binding::read_nodes(ErlNifEnv* env, ERL_NIF_TERM val
             if (!enif_get_int(env, port_term, &port)) {
                 throw std::invalid_argument("invalid port value");
             }
-            
             nodes.emplace_back(addr, port);
         }
         else {
