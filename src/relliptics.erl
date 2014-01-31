@@ -11,14 +11,9 @@
 
 %% API
 -export([open/1, close/1, write/2, fold/4, fold_indexes/5]).
+-export([make_object/2, make_object/3, get_key/1, get_value/1, get_indexes/1, set_key/2, set_value/2, set_indexes/2]).
 
--type relliptics_key() :: binary().
--type relliptics_index() :: binary().
--type reliptics_index_list():: [relliptics_index()].
--type relliptics_object():: {relliptics_key(),reliptics_index_list(),term()}.
-
--type relliptics_connection() :: term().
-
+-record(relliptics_object, {key, value, saved_indexes = [], new_indexes = undefined}).
 
 open(Config) ->
     case relliptics_nif:open(Config) of
@@ -32,24 +27,28 @@ close({_Ref, Conn}) ->
     relliptics_nif:close(Conn).
 
 
--spec write(Connection::relliptics_connection(), Data::[{Object::relliptics_object(), UpdatedIndexes::reliptics_index_list()}])->any().
 
 write({_Ref, Conn}, Data) when is_list(Data) ->
-    Serialized = lists:map(fun serialize/1, Data),
+    {Serialized, Updated} = lists:foldl(fun serialize/2, {[], []}, Data),
     Ref = make_ref(),
     case relliptics_nif:write_async(Ref, Conn, Serialized) of
         ok ->
             receive
-                {Ref, Result} ->
-                    Result
+                {Ref, ok} ->
+                    {ok, Updated}
             end
-    end.
+    end;
+write(DB, Object = #relliptics_object{}) ->
+    write(DB, [Object]).
 
-serialize({Object, Indexes}) ->
-    {Key, CurrentIndexes, _Body} = Object,
+serialize(Object = #relliptics_object{key = Key, new_indexes = undefined}, {Serialized, Updated}) ->
+    {[{Key, term_to_binary(Object)}|Serialized], [Object|Updated]};
+serialize(Object = #relliptics_object{saved_indexes = CurrentIndexes, key = Key, new_indexes = Indexes},
+          {Serialized, Updated}) when is_list(Indexes) ->
     IndexesToSave = Indexes -- CurrentIndexes,
     IndexesToRemove = CurrentIndexes -- Indexes,
-    {Key, term_to_binary(Object), IndexesToSave, IndexesToRemove}.
+    NewObject = Object#relliptics_object{saved_indexes = Indexes, new_indexes = undefined},
+    {[{Key, term_to_binary(NewObject), IndexesToSave, IndexesToRemove}|Serialized], [NewObject|Updated]}.
 
 
 fold({_Ref, Conn}, Fun, Acc, Keys) when is_list(Keys)->
@@ -64,7 +63,7 @@ fold({_Ref, Conn}, Fun, Acc, Keys) when is_list(Keys)->
 do_fold(Ref, Fun, Acc) ->
     receive
         {Ref, {data, Object}} ->
-            Acc1 = Fun(binary_to_term(Object, Acc)),
+            Acc1 = Fun(binary_to_term(Object), Acc),
             do_fold(Ref, Fun, Acc1);
         {Ref, ok} ->
             Acc;
@@ -81,3 +80,35 @@ fold_indexes({_Ref, Conn}, Strategy, Fun, Acc, Indexes) when is_list(Indexes) ->
         Else ->
             Else
     end.
+
+make_object(Key, Body) when is_binary(Key) ->
+    #relliptics_object{key = Key, value = Body}.
+
+
+
+make_object(Key, Body, Indexes) ->
+    Obj = make_object(Key, Body),
+    set_indexes(Obj, Indexes).
+
+get_key(#relliptics_object{key = Key}) ->
+    Key.
+
+get_value(#relliptics_object{value = Body}) ->
+    Body.
+
+
+get_indexes(#relliptics_object{new_indexes = Indexes}) when is_list(Indexes) ->
+    Indexes;
+get_indexes(#relliptics_object{saved_indexes = Indexes, new_indexes = undefined}) when is_list(Indexes) ->
+    Indexes.
+
+set_key(Obj, Key) when is_binary(Key)->
+    Obj#relliptics_object{key = Key}.
+
+set_value(Obj, Body) ->
+    Obj#relliptics_object{value = Body}.
+
+
+
+set_indexes(Obj, Indexes) when is_list(Indexes) ->
+    Obj#relliptics_object{new_indexes = Indexes}.
