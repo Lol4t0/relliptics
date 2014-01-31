@@ -436,11 +436,7 @@ ERL_NIF_TERM erl_binding::close(ErlNifEnv* env, ERL_NIF_TERM db_ref)
 {
     try
     {
-        db_connection& conn = get_connection(env, db_ref);
-        if (conn.inst == 0) {
-            return enif_make_badarg(env);
-        }
-        conn.inst.reset();
+        get_connection(env, db_ref).inst.reset();
         return atoms::OK;
     }
     catch (const std::invalid_argument&)
@@ -456,7 +452,12 @@ erl_binding::db_connection& erl_binding::get_connection(ErlNifEnv* env, ERL_NIF_
         throw std::invalid_argument("Invalid db ref");
     }
     else {
-        return *static_cast<db_connection*>(ptr);
+        assert(ptr != 0);
+        db_connection& conn = *static_cast<db_connection*>(ptr);
+        if (conn.inst == 0) {
+            throw std::invalid_argument("Connection not opened");
+        }
+        return conn;
     }
 }
 
