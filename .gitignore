@@ -2,3 +2,5 @@ ebin
 nbproject
 priv
 c_include
+.idea
+c_src/*.o

@@ -110,7 +110,6 @@ const char* erl_binding::MODULE = "relliptics_nif";
     
 int erl_binding::load(ErlNifEnv* env, void** priv_data, ERL_NIF_TERM load_info)
 {
-    (void)env;
     (void)load_info;
     
     atoms::LOG_PATH = enif_make_atom(env, "log_path");
@@ -155,7 +154,9 @@ void erl_binding::unload(ErlNifEnv* env, void* priv_data)
 
 erl_binding& erl_binding::instance(ErlNifEnv* env)
 {
-    return *static_cast<erl_binding*>(enif_priv_data(env));
+    void * ptr = enif_priv_data(env);
+    assert(ptr != 0);
+    return *static_cast<erl_binding*>(ptr);
 }
 
 ERL_NIF_TERM erl_binding::make_ok_result(ErlNifEnv* env, ERL_NIF_TERM value)
@@ -436,7 +437,11 @@ ERL_NIF_TERM erl_binding::close(ErlNifEnv* env, ERL_NIF_TERM db_ref)
 {
     try
     {
-        get_connection(env, db_ref).inst.reset();
+        db_connection& conn = get_connection(env, db_ref);
+        if (conn.inst == 0) {
+            return enif_make_badarg(env);
+        }
+        conn.inst.reset();
         return atoms::OK;
     }
     catch (const std::invalid_argument&)
@@ -467,4 +472,4 @@ static ErlNifFunc nif_funcs[] =
     {"close", 1, relliptics::erl_binding::close}
 };
 
-ERL_NIF_INIT(relliptics_nif, nif_funcs, 0, 0, 0, 0)
+ERL_NIF_INIT(relliptics_nif, nif_funcs, &relliptics::erl_binding::load, 0, 0, &relliptics::erl_binding::unload)
