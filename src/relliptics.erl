@@ -35,7 +35,9 @@ write({_Ref, Conn}, Data) when is_list(Data) ->
         ok ->
             receive
                 {Ref, ok} ->
-                    {ok, Updated}
+                    {ok, Updated};
+                {Ref, Else} ->
+                    Else
             end
     end;
 write(DB, Object = #relliptics_object{}) ->
