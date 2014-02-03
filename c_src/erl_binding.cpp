@@ -36,7 +36,8 @@ class callback
 public:
     callback(ErlNifEnv* original_env, ERL_NIF_TERM ref):
         _self_env(enif_alloc_env(), &enif_free_env),
-        _ref(enif_make_copy(&*_self_env, ref))
+        _ref_env(enif_alloc_env(), &enif_free_env),
+        _ref(enif_make_copy(&*_ref_env, ref))
     {
         enif_self(original_env, &_pid);
     }
@@ -44,6 +45,7 @@ public:
         
 private:
     std::shared_ptr<ErlNifEnv> _self_env;
+    std::shared_ptr<ErlNifEnv> _ref_env;
     ERL_NIF_TERM _ref;
     ErlNifPid _pid;
     
