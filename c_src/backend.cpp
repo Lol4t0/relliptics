@@ -212,7 +212,9 @@ public:
     
     ~read_by_indexes_watcher()
     {
-        assert(_complete_been_run);
+        if(!_complete_been_run) {
+            complete();
+	}
     }
     
 private:
