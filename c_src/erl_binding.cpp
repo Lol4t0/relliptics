@@ -52,6 +52,7 @@ protected:
     {
         ERL_NIF_TERM refd_term = enif_make_tuple2(env(), enif_make_copy(env(), _ref), term);
         enif_send(0, &_pid, env(), refd_term);
+	enif_clear_env(env());
     }
     
     ErlNifEnv* env()
@@ -96,12 +97,14 @@ public:
         
     void operator() (const std::string& data)
     {
-        ERL_NIF_TERM r_data_term;
+        ERL_NIF_TERM r_data_term = 0;
         
         uint8_t * buff = enif_make_new_binary(env(), data.size(), &r_data_term);
+        assert(buff != 0);
+        assert(r_data_term != 0);
         memcpy(buff, &data[0], data.size());
         
-        ERL_NIF_TERM r_term = enif_make_tuple2(env(), atoms::DATA, r_data_term);
+        ERL_NIF_TERM r_term = enif_make_tuple2(env(), enif_make_copy(env(), atoms::DATA), r_data_term);
         send_reply(r_term);
     }
 };
