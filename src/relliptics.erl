@@ -59,7 +59,7 @@ fold({_Ref, Conn}, Fun, Acc, Keys) when is_list(Keys)->
         ok ->
             do_fold(Ref, Fun, Acc);
         Else ->
-            Else
+            {fold_error, Acc, Else}
     end.
 
 do_fold(Ref, Fun, Acc) ->
@@ -69,8 +69,8 @@ do_fold(Ref, Fun, Acc) ->
             do_fold(Ref, Fun, Acc1);
         {Ref, ok} ->
             Acc;
-        Else ->
-            Else
+        {Ref, Else} ->
+            {do_fold_error, Acc, Else}
     end.
 
 
